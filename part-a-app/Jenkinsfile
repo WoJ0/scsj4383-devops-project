@@ -1,94 +1,58 @@
-// =====================================================================
-// SCSJ4383 Software Construction - Project 1 (Part A) Jenkins Pipeline
-// =====================================================================
-// This declarative pipeline implements DevOps items 3-7:
-//   - Pull code from GitHub (configured by the Jenkins job's SCM)
-//   - Build and unit-test with Maven
-//   - Run JMeter performance tests and publish the report
-//   - Build a Docker image and push it to Docker Hub
-//
-// PREREQUISITES configured once in Jenkins (see the runbook):
-//   - Tools: a Maven installation named 'Maven3', JDK named 'JDK21'
-//   - Plugins: Git, GitHub, Docker Pipeline, Performance (JMeter), Jira
-//   - Credentials (Manage Jenkins > Credentials):
-//       * 'dockerhub-creds'  : Docker Hub username + password/token
-//   - Update DOCKER_IMAGE below with YOUR Docker Hub username.
-// =====================================================================
-
+// SCSJ4383 Software Construction - Project 1 (Part A) - Jenkins Pipeline (Windows)
+// Build -> Unit Test -> JMeter performance report -> Docker build & push.
+// Before running, set DOCKER_IMAGE and JMETER below.
 pipeline {
     agent any
-
     tools {
         maven 'Maven3'
-        jdk 'JDK21'
     }
-
     environment {
-        // TODO: replace 'yourdockerhubuser' with your real Docker Hub username
         DOCKER_IMAGE = 'yourdockerhubuser/scsj4383-devops-demo'
-        DOCKER_TAG   = "${env.BUILD_NUMBER}"
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        JMETER = 'C:\\jmeter\\bin\\jmeter.bat'
     }
-
     stages {
-
         stage('Checkout') {
             steps {
-                // The job is configured to point at your GitHub repo; this just logs it.
-                echo "Building commit ${env.GIT_COMMIT ?: 'workspace'} on branch ${env.GIT_BRANCH ?: 'main'}"
                 checkout scm
             }
         }
-
         stage('Build') {
             steps {
                 dir('part-a-app') {
-                    sh 'mvn -B -DskipTests clean package'
+                    bat 'mvn -B -DskipTests clean package'
                 }
             }
         }
-
         stage('Unit Test') {
             steps {
                 dir('part-a-app') {
-                    sh 'mvn -B test'
+                    bat 'mvn -B test'
                 }
             }
             post {
                 always {
-                    // Publish JUnit results to the pipeline
                     junit 'part-a-app/target/surefire-reports/*.xml'
                 }
             }
         }
-
-        stage('Run App for Load Test') {
-            steps {
-                dir('part-a-app') {
-                    // Start the service in the background so JMeter can hit it
-                    sh 'nohup java -jar target/devops-demo.jar > app.log 2>&1 &'
-                    sh 'sleep 5'   // give it a moment to start
-                }
-            }
-        }
-
         stage('Performance Test (JMeter)') {
             steps {
                 dir('part-a-app') {
-                    // 'jmeter' must be on PATH on the Jenkins agent (see runbook)
-                    sh 'jmeter -n -t jmeter/test-plan.jmx -l results.jtl -e -o jmeter-report'
+                    bat 'start "DEMOAPP" /min cmd /c "java -jar target\\devops-demo.jar"'
+                    bat 'ping -n 9 127.0.0.1 >nul'
+                    bat "\"%JMETER%\" -n -t jmeter\\test-plan.jmx -l results.jtl -e -o jmeter-report"
+                    bat 'taskkill /FI "WINDOWTITLE eq DEMOAPP*" /T /F || exit 0'
                 }
             }
             post {
                 always {
-                    // Publish the JMeter results with the Performance plugin
                     perfReport sourceDataFiles: 'part-a-app/results.jtl'
-                    // Archive the full HTML dashboard as a build artifact
                     archiveArtifacts artifacts: 'part-a-app/jmeter-report/**', allowEmptyArchive: true
                 }
             }
         }
-
-        stage('Docker Build & Push') {
+        stage('Docker Build and Push') {
             steps {
                 dir('part-a-app') {
                     script {
@@ -102,12 +66,7 @@ pipeline {
             }
         }
     }
-
     post {
-        always {
-            // Stop the background app process
-            sh 'pkill -f devops-demo.jar || true'
-        }
         success {
             echo 'Pipeline finished successfully. Docker image pushed to Docker Hub.'
         }
