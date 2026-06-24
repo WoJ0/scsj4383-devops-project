@@ -7,7 +7,7 @@ pipeline {
         maven 'Maven3'
     }
     environment {
-        DOCKER_IMAGE = 'yourdockerhubuser/scsj4383-devops-demo'
+        DOCKER_IMAGE = 'wojtek0/scsj4383-devops-demo'
         DOCKER_TAG = "${env.BUILD_NUMBER}"
         JMETER = 'C:\\jmeter\\bin\\jmeter.bat'
     }
