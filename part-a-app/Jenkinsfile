@@ -40,6 +40,8 @@ pipeline {
             steps {
                 dir('part-a-app') {
                     bat 'if not exist apache-jmeter\\bin\\jmeter.bat powershell -Command "Invoke-WebRequest -Uri https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.zip -OutFile jmeter.zip; Expand-Archive jmeter.zip -DestinationPath . -Force; Rename-Item apache-jmeter-5.6.3 apache-jmeter"'
+                    bat 'if exist jmeter-report rmdir /s /q jmeter-report'
+                    bat 'if exist results.jtl del /q results.jtl'
                     bat 'start "DEMOAPP" /min cmd /c "java -jar target\\devops-demo.jar"'
                     bat 'ping -n 9 127.0.0.1 >nul'
                     bat 'apache-jmeter\\bin\\jmeter.bat -n -t jmeter\\test-plan.jmx -l results.jtl -e -o jmeter-report'
