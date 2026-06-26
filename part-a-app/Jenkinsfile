@@ -1,6 +1,6 @@
 // SCSJ4383 Software Construction - Project 1 (Part A) - Jenkins Pipeline (Windows)
 // Checkout -> Build -> Unit Test -> JMeter performance report -> Docker build & push.
-// JMeter is downloaded automatically; Docker image uses your Docker Hub account.
+// On success, posts a comment to the Jira issue SCSJ-1.
 pipeline {
     agent any
     tools {
@@ -68,10 +68,15 @@ pipeline {
                 }
             }
         }
+        stage('Update Jira Issue') {
+            steps {
+                jiraComment(issueKey: 'SCSJ-1', body: "Jenkins build ${env.BUILD_NUMBER} succeeded. Docker image pushed to Docker Hub: ${DOCKER_IMAGE}:${DOCKER_TAG}")
+            }
+        }
     }
     post {
         success {
-            echo 'Pipeline finished successfully. Docker image pushed to Docker Hub.'
+            echo 'Pipeline finished successfully. Docker image pushed to Docker Hub and Jira issue updated.'
         }
         failure {
             echo 'Pipeline failed - check the stage logs above.'
